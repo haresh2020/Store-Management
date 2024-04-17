@@ -1,0 +1,104 @@
+var express = require('express');
+const bodyParser = require('body-parser');
+var MongoClient = require('mongodb').MongoClient;
+const multer = require("multer");
+var app = express();
+const cors = require("cors");
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+app.use(cors());
+var password = encodeURIComponent("admin2020");
+var CONNECTION = "mongodb+srv://admin:" + password + "@cluster0.nnmmzfk.mongodb.net/?retryWrites=true&w=majority";
+var DATABASENAME = "Store";
+var database;
+
+app.listen(5038, () => {
+    MongoClient.connect(CONNECTION, (error, client) => {
+        if (error) {
+            console.error('Error connecting to MongoDB:', error);
+            return;
+        }
+        database = client.db(DATABASENAME);
+        console.log("Connected to MongoDB successfully");
+    });
+});
+
+app.get('/api/Store/GetData', (request, response) => {    
+    database.collection("products").find({}).toArray((error, result) => {
+        response.send(result);
+    });
+});
+
+app.post('/api/Store/save', multer().none(), (request, response) => {
+    database.collection("products").count({}, function (error, numofDocs) {
+        database.collection("products").insertOne({
+            Name: request.body.name,
+            Price: request.body.Price,
+            Quantity:request.body.Quantity,
+        });
+        response.json("Saved");
+    });
+});
+app.post('/api/Store/Uprice', multer().none(), (request, response) => {
+    database.collection("products").count({}, function (error, numofDocs) {
+        database.collection('products').updateOne(
+            { Name: request.body.name }, // Filter criteria (e.g., using _id)
+            { $set: { Price: request.body.price } }, // Update operation
+            { upsert: true } // Upsert option
+          );
+        response.json("Saved");
+    });
+});
+
+app.post('/api/Store/UQ', multer().none(), (request, response) => {
+    const value=request.body.Val;
+    const productName = request.body.name; // Get the product name from the request body
+     database.collection('products').updateOne(
+        { Name: productName }, // Filter criteria (e.g., using _id)
+        { $set: { Quantity: value } }, // Update operation
+        { upsert: true } // Upsert option
+      );
+
+});
+
+app.post('/api/Store/Uquantity', multer().none(), (request, response) => {
+    const productName = request.body.name; // Get the product name from the request body
+    // Query the database to find the product by name
+    database.collection("products").findOne({ Name: productName }, (error, product) => {
+        if (error) {
+            console.error('Error querying database:', error);
+            response.status(500).send('Internal Server Error');
+            return;
+        }
+        if (!product) {
+            console.log('Product not found');
+            response.status(404).send('Product not found');
+            return;
+        }
+        var quantity = product.Quantity; // Retrieve the quantity from the product document
+        response.send(quantity);
+    });
+});
+  
+app.post('/api/Store/Quan', multer().none(),  (request, response) => {  
+    const name=request.body.name;
+    database.collection("products").findOne({ Name: name }, (error, product) => {
+        var price = product.Price; // Retrieve the quantity from the product document
+        response.send(price);
+    });
+});
+
+
+app.post('/api/Store/Hist', multer().none(), (request, response) => {
+    console.log(request.body.dat);
+        database.collection("History of sold Products").insertOne({
+             order:request.body.data,
+       });
+      response.json("Saved");   
+});
+
+app.post('/api/Store/obj', multer().none(), (request, response) => {
+       database.collection("History of sold Products").find({}).toArray((error, result) => {
+        response.json(result);
+      });
+});
